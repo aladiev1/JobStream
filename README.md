@@ -116,7 +116,7 @@ GET /api/jobs
 ### Get Jobs Filtered By Status
 
 ```http
-GET /api/jobs?status=Pending
+GET /api/jobs?status={status}
 ```
 
 ### Get Job By ID
