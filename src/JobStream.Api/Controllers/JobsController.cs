@@ -12,10 +12,12 @@ namespace JobStream.Api.Controllers;
 public class JobsController : ControllerBase
 {
     private readonly IJobRepository _jobRepository;
+    private readonly IFileService _fileService;
 
-    public JobsController(IJobRepository jobRepository)
+    public JobsController(IJobRepository jobRepository, IFileService fileService)
     {
         _jobRepository = jobRepository;
+        _fileService = fileService;
     }
 
     [HttpPost]
@@ -78,6 +80,35 @@ public class JobsController : ControllerBase
             .ToList();
 
         return Ok(response);
+    }
+
+    [HttpGet("{id:guid}/download")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> DownloadJobFile(Guid id, CancellationToken cancellationToken)
+    {
+        var job = await _jobRepository.GetByIdAsync(id, cancellationToken);
+
+        if (job is null)
+        {
+            return NotFound();
+        }
+
+        if (string.IsNullOrWhiteSpace(job.OutputFilePath))
+        {
+            return BadRequest("This job does not have an output file yet.");
+        }
+
+        if (!_fileService.FileExists(job.OutputFilePath))
+        {
+            return NotFound("The output file could not be found.");
+        }
+
+        var stream = _fileService.OpenRead(job.OutputFilePath);
+        var fileName = _fileService.GetFileName(job.OutputFilePath);
+
+        return File(stream, "text/csv", fileName);
     }
 
     private static JobResponse MapToResponse(Job job)
