@@ -482,3 +482,4 @@ $RECYCLE.BIN/
 *.swp
 
 outputs/
+appsettings.Development.json
