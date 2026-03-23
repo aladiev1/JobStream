@@ -35,4 +35,10 @@ public class JobRepository : IJobRepository
             .OrderByDescending(x => x.CreatedUtc)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task UpdateAsync(Job job, CancellationToken cancellationToken = default)
+    {
+        _dbContext.Jobs.Update(job);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

@@ -1,5 +1,6 @@
 using JobStream.Api.Contracts.Requests;
 using JobStream.Api.Contracts.Responses;
+using JobStream.Application.Interfaces;
 using JobStream.Domain.Entities;
 using JobStream.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
@@ -10,12 +11,17 @@ namespace JobStream.Api.Controllers;
 [Route("api/[controller]")]
 public class JobsController : ControllerBase
 {
-    private static readonly List<Job> Jobs = new();
+    private readonly IJobRepository _jobRepository;
+
+    public JobsController(IJobRepository jobRepository)
+    {
+        _jobRepository = jobRepository;
+    }
 
     [HttpPost]
     [ProducesResponseType(typeof(JobResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public ActionResult<JobResponse> CreateJob(CreateJobRequest request)
+    public async Task<ActionResult<JobResponse>> CreateJob(CreateJobRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Location))
         {
@@ -39,7 +45,7 @@ public class JobsController : ControllerBase
             Priority = priority
         };
 
-        Jobs.Add(job);
+        await _jobRepository.AddAsync(job, cancellationToken);
 
         var response = MapToResponse(job);
 
@@ -49,9 +55,9 @@ public class JobsController : ControllerBase
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(JobResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public ActionResult<JobResponse> GetJobById(Guid id)
+    public async Task<ActionResult<JobResponse>> GetJobById(Guid id, CancellationToken cancellationToken)
     {
-        var job = Jobs.FirstOrDefault(x => x.Id == id);
+        var job = await _jobRepository.GetByIdAsync(id, cancellationToken);
 
         if (job is null)
         {
@@ -63,10 +69,11 @@ public class JobsController : ControllerBase
 
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<JobResponse>), StatusCodes.Status200OK)]
-    public ActionResult<IEnumerable<JobResponse>> GetJobs()
+    public async Task<ActionResult<IEnumerable<JobResponse>>> GetJobs(CancellationToken cancellationToken)
     {
-        var response = Jobs
-            .OrderByDescending(x => x.CreatedUtc)
+        var jobs = await _jobRepository.GetAllAsync(cancellationToken);
+
+        var response = jobs
             .Select(MapToResponse)
             .ToList();
 

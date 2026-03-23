@@ -14,6 +14,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IJobRepository, JobRepository>();
 
+Console.WriteLine("API DB: " + builder.Configuration.GetConnectionString("DefaultConnection"));
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -25,7 +27,6 @@ if (app.Environment.IsDevelopment())
 // app.UseHttpsRedirection();
 
 app.MapGet("/", () => Results.Ok("JobStream API is running."));
-
 app.MapControllers();
 
 app.Run();
