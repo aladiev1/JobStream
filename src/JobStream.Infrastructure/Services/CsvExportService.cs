@@ -6,8 +6,17 @@ namespace JobStream.Infrastructure.Services;
 
 public class CsvExportService : ICsvExportService
 {
+    private readonly IWeatherClient _weatherClient;
+
+    public CsvExportService(IWeatherClient weatherClient)
+    {
+        _weatherClient = weatherClient;
+    }
+
     public async Task<string> GenerateWeatherExportAsync(Job job, CancellationToken cancellationToken = default)
     {
+        var snapshot = await _weatherClient.GetCurrentWeatherAsync(job.Location, cancellationToken);
+
         var outputDirectory = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "outputs");
         var fullOutputDirectory = Path.GetFullPath(outputDirectory);
 
@@ -18,10 +27,8 @@ public class CsvExportService : ICsvExportService
 
         var rows = new List<string>
         {
-            "Location,ObservedUtc,TemperatureF,Humidity,WindMph,Condition",
-            $"{Escape(job.Location)},{DateTime.UtcNow:O},58,62,8,Cloudy",
-            $"{Escape(job.Location)},{DateTime.UtcNow.AddMinutes(-30):O},57,64,7,Cloudy",
-            $"{Escape(job.Location)},{DateTime.UtcNow.AddHours(-1):O},56,66,6,Overcast"
+            "Location,ObservedUtc,Temperature,Humidity,WindSpeed,Description",
+            $"{Escape(snapshot.Location)},{snapshot.ObservedUtc:O},{snapshot.Temperature},{snapshot.Humidity},{snapshot.WindSpeed},{Escape(snapshot.Description)}"
         };
 
         var csv = string.Join(Environment.NewLine, rows);

@@ -2,8 +2,10 @@ using JobStream.Application.Interfaces;
 using JobStream.Infrastructure.Persistence;
 using JobStream.Infrastructure.Repositories;
 using JobStream.Infrastructure.Services;
+using JobStream.Infrastructure.Options;
 using JobStream.Worker;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -16,6 +18,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IJobRepository, JobRepository>();
 builder.Services.AddScoped<ICsvExportService, CsvExportService>();
+builder.Services.Configure<WeatherstackOptions>(
+    builder.Configuration.GetSection(WeatherstackOptions.SectionName));
+builder.Services.AddHttpClient<IWeatherClient, WeatherstackClient>();
 
 var host = builder.Build();
 
