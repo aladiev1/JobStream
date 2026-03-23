@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+	<UserSecretsId>dotnet-JobStream.Api-anna-001</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,5 +19,5 @@
     <ProjectReference Include="..\JobStream.Application\JobStream.Application.csproj" />
     <ProjectReference Include="..\JobStream.Infrastructure\JobStream.Infrastructure.csproj" />
   </ItemGroup>
-
+  
 </Project>
