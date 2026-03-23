@@ -13,11 +13,13 @@ public class JobsController : ControllerBase
 {
     private readonly IJobRepository _jobRepository;
     private readonly IFileService _fileService;
+    private readonly ILogger<JobsController> _logger;
 
-    public JobsController(IJobRepository jobRepository, IFileService fileService)
+    public JobsController(IJobRepository jobRepository, IFileService fileService, ILogger<JobsController> logger)
     {
         _jobRepository = jobRepository;
         _fileService = fileService;
+        _logger = logger;
     }
 
     [HttpPost]
@@ -30,7 +32,9 @@ public class JobsController : ControllerBase
             return BadRequest("Location is required.");
         }
 
-        if (!string.Equals(request.Format, "csv", StringComparison.OrdinalIgnoreCase))
+        var format = request.Format?.Trim().ToLowerInvariant();
+
+        if (string.IsNullOrWhiteSpace(format) || format != "csv")
         {
             return BadRequest("Only csv format is currently supported.");
         }
@@ -42,14 +46,25 @@ public class JobsController : ControllerBase
 
         var job = new Job
         {
+            Id = Guid.NewGuid(),
             Location = request.Location.Trim(),
-            Format = request.Format.Trim().ToLowerInvariant(),
-            Priority = priority
+            Format = format!,
+            Priority = priority,
+            Status = JobStatus.Pending,
+            AttemptCount = 0,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
         };
 
         await _jobRepository.AddAsync(job, cancellationToken);
 
         var response = MapToResponse(job);
+
+        _logger.LogInformation(
+            "Created job {JobId} for location {Location} with priority {Priority}",
+            job.Id,
+            job.Location,
+            job.Priority);
 
         return CreatedAtAction(nameof(GetJobById), new { id = job.Id }, response);
     }
@@ -63,21 +78,42 @@ public class JobsController : ControllerBase
 
         if (job is null)
         {
+            _logger.LogWarning("Job {JobId} not found", id);
             return NotFound();
         }
+
+        _logger.LogInformation("Fetching job {JobId}", id);
 
         return Ok(MapToResponse(job));
     }
 
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<JobResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<JobResponse>>> GetJobs(CancellationToken cancellationToken)
+    public async Task<ActionResult<IEnumerable<JobResponse>>> GetJobs(
+        [FromQuery] string? status,
+        CancellationToken cancellationToken)
     {
         var jobs = await _jobRepository.GetAllAsync(cancellationToken);
 
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            if (!Enum.TryParse<JobStatus>(status, true, out var parsedStatus))
+            {
+                return BadRequest("Status must be Pending, Processing, Completed, or Failed.");
+            }
+
+            jobs = jobs.Where(x => x.Status == parsedStatus).ToList();
+        }
+
         var response = jobs
+            .OrderByDescending(x => x.CreatedUtc)
             .Select(MapToResponse)
             .ToList();
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            _logger.LogInformation("Fetching jobs with status filter: {Status}", status);
+        }
 
         return Ok(response);
     }
@@ -92,12 +128,23 @@ public class JobsController : ControllerBase
 
         if (job is null)
         {
+            _logger.LogWarning("Job {JobId} not found", id);
             return NotFound();
+        }
+
+        if (job.Status == JobStatus.Failed)
+        {
+            return BadRequest("This job failed and does not have a downloadable file.");
+        }
+
+        if (job.Status != JobStatus.Completed)
+        {
+            return BadRequest($"This job is not ready for download. Current status: {job.Status}.");
         }
 
         if (string.IsNullOrWhiteSpace(job.OutputFilePath))
         {
-            return BadRequest("This job does not have an output file yet.");
+            return BadRequest("This job does not have an output file.");
         }
 
         if (!_fileService.FileExists(job.OutputFilePath))
@@ -107,6 +154,8 @@ public class JobsController : ControllerBase
 
         var stream = _fileService.OpenRead(job.OutputFilePath);
         var fileName = _fileService.GetFileName(job.OutputFilePath);
+
+        _logger.LogInformation("Downloading file for job {JobId}: {FilePath}", job.Id, job.OutputFilePath);
 
         return File(stream, "text/csv", fileName);
     }
@@ -126,7 +175,8 @@ public class JobsController : ControllerBase
             AttemptCount = job.AttemptCount,
             MaxAttempts = job.MaxAttempts,
             OutputFilePath = job.OutputFilePath,
-            LastError = job.LastError
+            LastError = job.LastError,
+            UpdatedUtc = job.UpdatedUtc
         };
     }
 }

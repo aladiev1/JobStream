@@ -4,24 +4,62 @@ Asynchronous job processing platform built with ASP.NET Core and .NET, designed 
 
 ---
 
-## 🚀 Overview
+## Overview
 
-JobStream simulates a real-world data pipeline:
+JobStream demonstrates how to design and implement a **reliable, asynchronous backend system** that processes long-running tasks outside of the request lifecycle.
 
-- Accepts jobs via REST API
-- Stores jobs in SQL Server
-- Processes jobs asynchronously via a background worker
-- Fetches data from an external API (Weatherstack)
-- Generates CSV exports
-- Handles retries and failure states
+The system allows clients to submit jobs via a REST API, persists them to a database, and processes them in the background using a worker service.
+
+This project emphasizes backend system design patterns commonly used in scalable, resilient, and distributed systems.
+
+### Key capabilities:
+- Decouples request handling from long-running processing
+- Tracks job lifecycle state (Pending → Processing → Completed / Failed)
+- Implements retry logic for fault tolerance
+- Integrates with external APIs
+- Produces downloadable output artifacts (CSV files)
 
 ---
 
-## 🏗️ Architecture
+## Problem It Solves
+
+In real-world systems, certain operations (API calls, data exports, report generation) can take seconds or minutes to complete.
+
+Handling these operations synchronously:
+- blocks API threads
+- degrades performance
+- leads to timeouts
+
+JobStream solves this by:
+- offloading work to a background worker
+- persisting job state in a database
+- allowing clients to poll for job status
+- enabling safe retries on failure
+
+This pattern is commonly used in:
+- data export systems
+- reporting pipelines
+- integration services
+- ETL workflows
+
+---
+
+## Architecture
 
 ```
-API → SQL Server → Worker → Weatherstack API → CSV Output
+Client → API → SQL Server → Worker → External API → File Output
 ```
+
+### Flow
+
+1. Client submits job via API
+2. Job is persisted with `Pending` status
+3. Worker polls and picks up pending jobs
+4. Worker transitions job to `Processing`
+5. External API is called
+6. CSV is generated
+7. Job transitions to `Completed` or `Failed`
+8. Client retrieves status or downloads file
 
 ### Components
 
@@ -42,18 +80,18 @@ API → SQL Server → Worker → Weatherstack API → CSV Output
 
 ---
 
-## ⚙️ Features
+## Features
 
 - Asynchronous job processing using background workers
 - External API integration (Weatherstack)
 - CSV file generation and export
-- Retry logic with configurable max attempts
+- Retry logic with configurable max attempts and failure recovery
 - Error tracking and logging
 - Clean layered architecture (API / Application / Infrastructure)
 
 ---
 
-## 📡 API Endpoints
+## API Endpoints
 
 ### Create Job
 
@@ -75,26 +113,40 @@ POST /api/jobs
 GET /api/jobs
 ```
 
+### Get Jobs Filtered By Status
+
+```http
+GET /api/jobs?status=Pending
+```
+
 ### Get Job By ID
 
 ```http
 GET /api/jobs/{id}
 ```
 
----
+### Download Job Output
 
-## 🧪 Example Workflow
-
-1. Send POST request to create a job
-2. Job is stored in SQL Server with status Pending
-3. Worker picks up job
-4. Calls Weatherstack API
-5. Generates CSV file
-6. Updates job to Completed
+```http
+GET /api/jobs/{id}/download
+```
 
 ---
 
-## 📁 Example Output
+## Example Workflow
+
+1. Client submits a job via `POST /api/jobs`
+2. Job is stored with status `Pending`
+3. Worker picks up the job and sets status to `Processing`
+4. External API is called and data is processed
+5. CSV file is generated and saved
+6. Job is marked as `Completed`
+7. Client retrieves job status via `GET /api/jobs/{id}`
+8. Client downloads output via `/download` endpoint
+
+---
+
+## Example Output
 
 ```csv
 Location,Temperature,WeatherDescription
@@ -103,10 +155,11 @@ Baltimore,72,Partly cloudy
 
 ---
 
-## 🔐 Configuration
+## Configuration
 
-Weatherstack API Key
-Stored securely using .NET User Secrets
+Sensitive values such as API keys are not stored in source control.
+
+Use .NET User Secrets for local development:
 
 ```bash
 dotnet user-secrets set "Weatherstack:ApiKey" "YOUR_API_KEY" --project src/JobStream.Worker/JobStream.Worker.csproj
@@ -114,7 +167,7 @@ dotnet user-secrets set "Weatherstack:ApiKey" "YOUR_API_KEY" --project src/JobSt
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 - C#
 - ASP.NET Core
 - Entity Framework Core
@@ -125,17 +178,20 @@ dotnet user-secrets set "Weatherstack:ApiKey" "YOUR_API_KEY" --project src/JobSt
 
 ---
 
-## 🧠 Key Concepts Demonstrated
-- Asynchronous processing
-- Dependency Injection
-- Repository pattern
+## Key Concepts Demonstrated
+
+- Asynchronous background processing
+- Job lifecycle management (state transitions)
+- Fault tolerance and retry handling
+- Separation of concerns (API, Application, Infrastructure)
+- Repository pattern and data persistence
 - External API integration
-- Fault tolerance & retry handling
-- Separation of concerns (clean architecture)
+- File generation and streaming (CSV download)
+- Structured logging and observability
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
 ### Create Job (API)
 
@@ -155,16 +211,19 @@ dotnet user-secrets set "Weatherstack:ApiKey" "YOUR_API_KEY" --project src/JobSt
 
 ---
 
-## 📌 Future Improvements
-- Replace polling with queue system (Azure Queue / RabbitMQ)
-- Add file download endpoint
-- Add job prioritization handling
-- Add authentication & rate limiting
-- Dockerize application
+## Future Improvements
+
+- Replace polling with message queue (Azure Queue, RabbitMQ)
+- Implement distributed workers for scalability
+- Add authentication and authorization
+- Add rate limiting and request validation
+- Introduce job prioritization queues
+- Add integration and unit tests
+- Dockerize application for deployment
 
 ---
 
-## 🧑‍💻 Author
+## Author
 Anna Aladiev
 
 ---

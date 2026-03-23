@@ -25,4 +25,6 @@ public class JobResponse
     public string? OutputFilePath { get; set; }
 
     public string? LastError { get; set; }
+
+    public DateTime UpdatedUtc { get; set; }
 }
