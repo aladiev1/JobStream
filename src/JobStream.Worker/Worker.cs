@@ -24,10 +24,11 @@ public class Worker : BackgroundService
             try
             {
                 using var scope = _scopeFactory.CreateScope();
+
                 var jobRepository = scope.ServiceProvider.GetRequiredService<IJobRepository>();
+                var csvExportService = scope.ServiceProvider.GetRequiredService<ICsvExportService>();
 
                 var jobs = await jobRepository.GetAllAsync(stoppingToken);
-
                 _logger.LogInformation("Found {Count} total jobs", jobs.Count);
 
                 var pendingJobs = jobs
@@ -44,13 +45,16 @@ public class Worker : BackgroundService
                     job.StartedUtc = DateTime.UtcNow;
                     await jobRepository.UpdateAsync(job, stoppingToken);
 
-                    await Task.Delay(2000, stoppingToken);
+                    var outputFilePath = await csvExportService.GenerateWeatherExportAsync(job, stoppingToken);
 
+                    job.OutputFilePath = outputFilePath;
                     job.Status = JobStatus.Completed;
                     job.CompletedUtc = DateTime.UtcNow;
+
                     await jobRepository.UpdateAsync(job, stoppingToken);
 
                     _logger.LogInformation("Completed job {JobId}", job.Id);
+                    _logger.LogInformation("CSV written to {FilePath}", outputFilePath);
                 }
             }
             catch (Exception ex)
