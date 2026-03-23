@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/JobStream.Api/JobStream.Api.csproj" />
+    <Project Path="src/JobStream.Application/JobStream.Application.csproj" />
+    <Project Path="src/JobStream.Domain/JobStream.Domain.csproj" />
+    <Project Path="src/JobStream.Infrastructure/JobStream.Infrastructure.csproj" />
+    <Project Path="src/JobStream.Worker/JobStream.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/JobStream.Api.IntegrationTests/JobStream.Api.IntegrationTests.csproj" />
+    <Project Path="tests/JobStream.Application.Tests/JobStream.Application.Tests.csproj" />
+    <Project Path="tests/JobStream.Domain.Tests/JobStream.Domain.Tests.csproj" />
+  </Folder>
+</Solution>
